@@ -8,7 +8,7 @@ def fix_uv(uv):
     return (uv[0], 1.0 - uv[1])
 
 def fix_angle(euler, degrees=True):
-    x, y, z = euler[0], -euler[1], -euler[2]
+    x, y, z = euler[0], euler[1], euler[2]
     if degrees:
         x = math.degrees(x)
         y = math.degrees(y)

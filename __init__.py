@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Figura Mesh Exporter",
     "author": "Ruz (based on KitCat962)",
-    "version": (0, 2, 0),
+    "version": (0, 1, 1),
     "blender": (5, 2, 0),
     "location": "File > Export > Figura Avatar",
     "description": "Exports models for figura with blendshapes, bones and animations.",
