@@ -1,0 +1,8 @@
+{
+  "name": "Demo",
+  "description": "This is a demo of my blender plugin",
+  "authors": [
+    "Ruz"
+  ],
+  "color": "#5555ff"
+}
