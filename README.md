@@ -23,8 +23,7 @@ With plans in the future to support:
 
 ---
 
-https://ko-fi.com/ruzonmoney
-
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/T7D226ZUTG)
 ---
 
 # Installation
