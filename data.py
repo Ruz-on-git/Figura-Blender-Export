@@ -85,28 +85,28 @@ class AnimationData:
     def __str__(self):
         lines = [
             f"AnimationData(",
-            f"  name={self.name!r},",
-            f"  length={self.length:.4f},",
-            f"  loop={self.loop!r},",
-            f"  animators={{",
+            " "*2 + f"name={self.name!r},",
+            " "*2 + f"length={self.length:.4f},",
+            " "*2 + f"loop={self.loop!r},",
+            " "*2 + f"animators={{",
         ]
 
         for bone_name, keyframes in self.animators.items():
-            lines.append(f"    {bone_name!r}: [")
+            lines.append(" "*4 +f"{bone_name!r}: [")
 
             for keyframe in keyframes:
-                lines.append(f"      {keyframe},")
+                lines.append(" "*6 +f"{keyframe},")
 
-            lines.append("    ],")
+            lines.append(" "*4 + "],")
 
-        lines.append("  },")
+        lines.append(" "*2 + "},")
 
-        lines.append("  shape_keyframes=[")
+        lines.append(" "*2 + "shape_keyframes=[")
 
         for keyframe in self.shape_keyframes:
-            lines.append(f"    {keyframe},")
+            lines.append(" "*4 + f"{keyframe},")
 
-        lines.append("  ]")
+        lines.append(" "*2 + "]")
         lines.append(")")
 
         return "\n".join(lines)
