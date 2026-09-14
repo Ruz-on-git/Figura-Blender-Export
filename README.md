@@ -23,6 +23,10 @@ With plans in the future to support:
 
 ---
 
+https://ko-fi.com/ruzonmoney
+
+---
+
 # Installation
 
 1. Go into releases and download the latest ZIP file with the current release.
