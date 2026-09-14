@@ -9,7 +9,7 @@ function DRIVER.init(modelName, meshPart, first_bone)
     if not meshPart then
         error('meshPart is required for "' .. modelName .. '"')
     end
-    if not bone then
+    if not first_bone then
         error('boneRoot is required for "' .. modelName .. '"')
     end
 
