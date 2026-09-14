@@ -14,10 +14,8 @@ class AnimationParser:
     def parse(self, armature_obj, mesh_obj=None) -> list:
         animations = []
         anim_data = armature_obj.animation_data
-        if not anim_data:
-            return animations
 
-        if anim_data.action:
+        if anim_data and anim_data.action:
             slot = getattr(anim_data, "action_slot", None)
             anim = self._process_action(anim_data.action, slot=slot)
             if anim:
