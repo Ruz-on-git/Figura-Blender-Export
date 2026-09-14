@@ -11,50 +11,90 @@ class AnimationParser:
             fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
         self.fps = fps
 
-    def parse(self, armature_obj, mesh_obj=None) -> list:
+    def parse(self, armature_obj, mesh_obj=None):
         animations = []
-        anim_data = armature_obj.animation_data
+        by_name = {}
+        bone_ranges = []
 
-        if anim_data and anim_data.action:
-            slot = getattr(anim_data, "action_slot", None)
-            anim = self._process_action(anim_data.action, slot=slot)
-            if anim:
-                animations.append(anim)
+        def process_sources(sources, shape_only=False):
+            for name_hint, action, slot, strip_frame_range in sources:
+                fcurves = self._get_fcurves(action, slot)
+                if not fcurves:
+                    continue
+                shape_fcurves = [fc for fc in fcurves if 'key_blocks["' in fc.data_path and fc.data_path.endswith(".value")]
+                if shape_only:
+                    if not shape_fcurves:
+                        continue
+                    anim = self._process_action(None, name_override=clean_name(name_hint or action.name), extra_fcurves=shape_fcurves)
+                else:
+                    anim = self._process_action(action, name_override=clean_name(name_hint or action.name), slot=slot)
 
-        if mesh_obj and mesh_obj.data.shape_keys:
-            mesh_anim = mesh_obj.data.shape_keys.animation_data
-            if mesh_anim and mesh_anim.action:
-                extra = self._get_fcurves(mesh_anim.action, getattr(mesh_anim, "action_slot", None))
+                if not anim:
+                    continue
 
-                if extra:
-                    if animations:
-                        shape_anim = self._process_action(None, name_override="ShapeKeys", extra_fcurves=extra)
+                target = self._find_matching_animation(by_name, bone_ranges, animations, name_hint, strip_frame_range)
+                if shape_only:
+                    if anim.shape_keyframes and target:
+                        target.shape_keyframes.extend(anim.shape_keyframes)
+                    continue
 
-                        if shape_anim and shape_anim.shape_keyframes:
-                            animations[0].shape_keyframes.extend(shape_anim.shape_keyframes)
-                    else:
-                        anim = self._process_action(mesh_anim.action, name_override="ShapeKeys")
-                        if anim:
-                            animations.append(anim)
+                if target is None:
+                    if anim and anim.name not in by_name:
+                        animations.append(anim)
+                        by_name[anim.name] = anim
+                    target = by_name.get(anim.name) if anim else None
 
-            if mesh_obj.animation_data and mesh_obj.animation_data.action:
-                extra = self._get_fcurves(mesh_obj.animation_data.action, getattr(mesh_obj.animation_data, "action_slot", None))
-                if extra:
-                    shape_anim = self._process_action(None, name_override="ShapeKeys", extra_fcurves=extra)
-                    if shape_anim and shape_anim.shape_keyframes:
-                        if animations:
-                            animations[0].shape_keyframes.extend(shape_anim.shape_keyframes)
-                        else:
-                            animations.append(shape_anim)
+                if target and anim.shape_keyframes:
+                    target.shape_keyframes.extend(anim.shape_keyframes)
 
-        for track in anim_data.nla_tracks:
+        if anim_data := armature_obj.animation_data:
+            sources = self._get_animation_sources(anim_data)
+            process_sources(sources)
+
+        if mesh_obj:
+            process_sources(self._get_animation_sources(mesh_obj.animation_data))
+        if mesh_obj.data.shape_keys:
+            process_sources(self._get_animation_sources(mesh_obj.data.shape_keys.animation_data), shape_only=True)
+        return animations
+
+
+    def _get_animation_sources(self, source):
+        result = []
+        if not source:
+            return result
+        if source.action:
+            result.append((source.action.name, source.action, getattr(source, "action_slot", None), None))
+        for track in source.nla_tracks:
             for strip in track.strips:
                 if strip.action:
-                    anim = self._process_action(strip.action, name_override=strip.name)
-                    if anim:
-                        animations.append(anim)
+                    result.append((strip.name, strip.action, None, (strip.frame_start, strip.frame_end)))
+        return result
 
-        return animations
+    def _find_matching_animation(self, by_name, bone_ranges, animations, name_hint, strip_frame_range):
+        if strip_frame_range is not None and bone_ranges:
+            best_anim, best_overlap = None, 0.0
+            for anim, fs, fe in bone_ranges:
+                overlap = min(strip_frame_range[1], fe) - max(strip_frame_range[0], fs)
+                if overlap > best_overlap:
+                    best_overlap, best_anim = overlap, anim
+            if best_anim is not None:
+                return best_anim
+
+        if name_hint:
+            cleaned = clean_name(name_hint)
+            if cleaned in by_name:
+                return by_name[cleaned]
+            import re
+            base_hint = re.sub(r'[._]\d+$', '', cleaned)
+            for name, anim in by_name.items():
+                if re.sub(r'[._]\d+$', '', name) == base_hint:
+                    return anim
+
+        if name_hint is None and len(animations) == 1:
+            return animations[0]
+
+        return None
+
 
     def _process_action(self, action, name_override=None, slot=None, extra_fcurves=None):
         if not action and not extra_fcurves:
@@ -189,25 +229,29 @@ class AnimationParser:
             return []
 
         if hasattr(action, "layers") and len(action.layers) > 0:
-            try:
-                if slot is None and hasattr(action, "slots") and len(action.slots) > 0:
-                    slot = action.slots[0]
-                if slot is not None:
-                    channelbag = anim_utils.action_get_channelbag_for_slot(action, slot)
+            fcurves = []
+            slots = [slot] if slot is not None else list(getattr(action, "slots", []))
+
+            for s in slots:
+                try:
+                    channelbag = anim_utils.action_get_channelbag_for_slot(action, s)
                     if channelbag and hasattr(channelbag, "fcurves"):
-                        return list(channelbag.fcurves)
-            except Exception:
-                pass
-            try:
-                layer = action.layers[0]
-                if layer.strips:
-                    strip = layer.strips[0]
-                    if hasattr(action, "slots") and len(action.slots) > 0:
-                        cb = strip.channelbag(action.slots[0])
+                        fcurves.extend(channelbag.fcurves)
+                        continue
+                except Exception:
+                    pass
+
+                try:
+                    layer = action.layers[0]
+                    if layer.strips:
+                        cb = layer.strips[0].channelbag(s)
                         if cb and hasattr(cb, "fcurves"):
-                            return list(cb.fcurves)
-            except Exception:
-                pass
+                            fcurves.extend(cb.fcurves)
+                except Exception:
+                    pass
+
+            if fcurves:
+                return fcurves
 
         if hasattr(action, "fcurves"):
             return list(action.fcurves)
