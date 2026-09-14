@@ -111,10 +111,9 @@ function DRIVER.init(modelName, meshPart, first_bone)
 
     --- Sets a blend shape to a value, optionally interpolating to it over time.
     ---@param name string The name of the blend shape.
-    ---@param value number The target weight, clamped between 0 and 1.
+    ---@param value number The target weight.
     ---@param duration? number Time in seconds to interpolate to the target value.
     function mesh.setBlendShape(name, value, duration)
-        value = math.clamp(tonumber(value) or 0, 0, 1)
         duration = tonumber(duration) or 0
 
         if duration > 0 then
@@ -132,16 +131,14 @@ function DRIVER.init(modelName, meshPart, first_bone)
 
     --- Sets a blend shape immediately and optionally starts a second transition.
     ---@param name string The name of the blend shape.
-    ---@param value number The initial weight, clamped between 0 and 1.
+    ---@param value number The initial weight.
     ---@param nextValue? number The weight to transition to after setting the initial value.
     ---@param duration? number Time in seconds to transition from value to nextValue.
     function mesh.setBlendShapeKey(name, value, nextValue, duration)
-        value = math.clamp(tonumber(value) or 0, 0, 1)
         blends[name] = nil
         weights[name] = value
 
         if nextValue ~= nil and (tonumber(duration) or 0) > 0 then
-            nextValue = math.clamp(tonumber(nextValue) or 0, 0, 1)
             blends[name] = {
                 from = value,
                 to = nextValue,
